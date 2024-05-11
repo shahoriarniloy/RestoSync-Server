@@ -1,89 +1,83 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*'); 
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-  });
-  
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-  app.use(express.json());
-
-
-
-
-  
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.dxgrzuk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-
+// MongoDB Connection
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.dxgrzuk.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
-    // strict: true,
     strict: false,
-
     deprecationErrors: true,
   }
 });
 
 async function run() {
   try {
-  
-
+    await client.connect();
     const database = client.db("resturantDB");
-    const foodsCollection =database.collection("foods");
+    const foodsCollection = database.collection("foods");
 
-
-
-    
-    app.get('/foods',async(req,res)=>{
+    // Get all foods
+    app.get('/foods', async (req, res) => {
+      try {
         const cursor = foodsCollection.find();
         const result = await cursor.toArray();
-        res.send(result);
-    
-    })
-
-    app.post('/foods',async(req,res)=>{
-        const newFood= req.body;
-        console.log(newFood);
-        result = await foodsCollection.insertOne(newFood);
-        console.log(result);
-        res.send(result);
-
+        res.json(result);
+      } catch (error) {
+        console.error("Error retrieving foods:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
     });
 
+    // Add a new food
+    app.post('/foods', async (req, res) => {
+      try {
+        const newFood = req.body;
+        const result = await foodsCollection.insertOne(newFood);
+        res.json(result.ops[0]);
+      } catch (error) {
+        console.error("Error adding food:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    // Get top foods
     app.get('/topfoods', async (req, res) => {
-        try {
-            const topFoods = await foodsCollection.find()
-                                .sort({ count: -1, _id: 1 }) 
-                                .limit(6)
-                                .toArray();
-            console.log(topFoods);
-            res.json(topFoods);
-        } catch (error) {
-            console.error("Error retrieving top foods:", error);
-            res.status(500).json({ error: "Internal server error" });
-        }
+      try {
+        const topFoods = await foodsCollection.find()
+                          .sort({ count: -1, _id: 1 }) 
+                          .limit(6)
+                          .toArray();
+        res.json(topFoods);
+      } catch (error) {
+        console.error("Error retrieving top foods:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
     });
-    
-    
-    
 
-  
-
- 
-    
-     
-   
-
- 
-   
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // Get single food by ID
+    app.get('/fooddetails/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const food = await foodsCollection.findOne({ _id: new ObjectId(id) }); // Instantiate ObjectId with 'new'
+        if (!food) {
+          return res.status(404).json({ error: "Food not found" });
+        }
+        res.json(food);
+      } catch (error) {
+        console.error("Error retrieving food:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -91,15 +85,12 @@ async function run() {
 }
 run().catch(console.dir);
 
-  
-app.get('/',(req,res)=>{
-    res.send('RestoSync Server')
+// Default route
+app.get('/', (req, res) => {
+  res.send('RestoSync Server');
 });
 
-
-
-
-
-app.listen(port,()=>{
-    console.log(`Server is running on port: ${port}`);
-})
+// Start server
+app.listen(port, () => {
+  console.log(`Server is running on port: ${port}`);
+});
