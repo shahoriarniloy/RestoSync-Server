@@ -50,6 +50,23 @@ async function run() {
 
     });
 
+    app.get('/topfoods', async (req, res) => {
+        try {
+            const topFoods = await foodsCollection.find()
+                                .sort({ count: -1, _id: 1 }) 
+                                .limit(6)
+                                .toArray();
+            console.log(topFoods);
+            res.json(topFoods);
+        } catch (error) {
+            console.error("Error retrieving top foods:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    });
+    
+    
+    
+
   
 
  
@@ -69,7 +86,7 @@ run().catch(console.dir);
 
   
 app.get('/',(req,res)=>{
-    res.send('Artstry server')
+    res.send('RestoSync Server')
 });
 
 
