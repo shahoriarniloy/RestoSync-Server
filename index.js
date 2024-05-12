@@ -25,6 +25,8 @@ async function run() {
     await client.connect();
     const database = client.db("resturantDB");
     const foodsCollection = database.collection("foods");
+    const purchaseCollection = database.collection("purchases");
+
 
     // Get all foods
     app.get('/foods', async (req, res) => {
@@ -43,7 +45,7 @@ async function run() {
       try {
         const newFood = req.body;
         const result = await foodsCollection.insertOne(newFood);
-        res.json(result.ops[0]);
+        res.json(result);
       } catch (error) {
         console.error("Error adding food:", error);
         res.status(500).json({ error: "Internal server error" });
@@ -78,6 +80,28 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+
+   // purchasing a food item
+   app.post('/purchase', async (req, res) => {
+    try {
+      const newPurchase = req.body;
+      const result = await purchaseCollection.insertOne(newPurchase);
+      await foodsCollection.updateOne(
+        { _id: new ObjectId(newPurchase.foodId) },
+        { $inc: { count: 1 } }
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("Error purchasing food:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+
+
+
+
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
