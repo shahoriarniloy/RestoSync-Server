@@ -45,14 +45,16 @@ async function run() {
     // Add a new food
     app.post('/foods', async (req, res) => {
       try {
-        const newFood = req.body;
-        const result = await foodsCollection.insertOne(newFood);
-        res.json(result);
+          const newFood = req.body;
+          newFood.quantity = parseInt(newFood.quantity);
+          const result = await foodsCollection.insertOne(newFood);
+          res.json(result);
       } catch (error) {
-        console.error("Error adding food:", error);
-        res.status(500).json({ error: "Internal server error" });
+          console.error("Error adding food:", error);
+          res.status(500).json({ error: "Internal server error" });
       }
-    });
+  });
+  
 
     // Get top foods
     app.get('/topfoods', async (req, res) => {
@@ -84,20 +86,25 @@ async function run() {
     });
 
    // purchasing a food item
-   app.post('/purchase', async (req, res) => {
+   
+
+  app.post('/purchase', async (req, res) => {
     try {
-      const newPurchase = req.body;
-      const result = await purchaseCollection.insertOne(newPurchase);
-      await foodsCollection.updateOne(
-        { _id: new ObjectId(newPurchase.foodId) },
-        { $inc: { count: 1 } }
-      );
-      res.json(result);
+        const newPurchase = req.body;
+        
+        const result = await purchaseCollection.insertOne(newPurchase);
+        const updateResult = await foodsCollection.updateOne(
+            { _id: new ObjectId(newPurchase.foodId) },
+            { $inc: { count: 1, quantity: -newPurchase.quantity } }
+        );
+        console.log('Update result:', updateResult);
+        res.json(result);
     } catch (error) {
-      console.error("Error purchasing food:", error);
-      res.status(500).json({ error: "Internal server error" });
+        console.error("Error purchasing food:", error);
+        res.status(500).json({ error: "Internal server error" });
     }
-  });
+});
+
 
   app.get('/feedback', async (req, res) => {
     try {
