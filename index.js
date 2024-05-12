@@ -27,6 +27,7 @@ async function run() {
     const foodsCollection = database.collection("foods");
     const purchaseCollection = database.collection("purchases");
     const feedbackCollection = database.collection("feedbacks");
+    const usersCollection = database.collection("users");
 
 
 
@@ -127,6 +128,80 @@ async function run() {
       res.status(500).json({ error: "Internal server error" });
     }
   });
+
+
+
+  app.post('/register', async (req, res) => {
+    try {
+        const { name, email, profileUrl } = req.body;
+
+        const existingUser = await usersCollection.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ error: "Email already exists" });
+        }
+
+        const result = await usersCollection.insertOne({
+            name,
+            email,
+            profileUrl
+        });
+
+        res.json(result);
+    } catch (error) {
+        console.error("Error registering user:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+
+
+app.get('/userfoods/:email', async (req, res) => {
+  const email = req.params.email;
+  const query = { 'addedBy.email': email }; 
+  const foods = await foodsCollection.find(query).toArray();
+  res.send(foods);
+});
+
+
+
+const ObjectId = require('mongodb').ObjectId;
+
+app.put('/userfood/update/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const art = req.body;
+
+        const filter = { _id: new ObjectId(id) };
+        const update = {
+            $set: {
+                image: art.foodImage,
+                item_name: art.foodName,
+                foodCategory: art.foodCategory,
+                quantity: art.quantity,
+                price: art.price,
+                foodOrigin: art.foodOrigin,
+                short_description: art.shortDescription,
+                user_email: art.addBy.email,
+                user_name: art.addBy.name
+            }
+        };
+
+        const options = { upsert: true };
+
+        const result = await foodsCollection.updateOne(filter, update, options);
+
+        if (result.modifiedCount === 1) {
+            res.status(200).json({ message: "Food item updated successfully" });
+        } else {
+            res.status(404).json({ error: "Food item not found" });
+        }
+    } catch (error) {
+        console.error("Error updating food item:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+
 
 
 
