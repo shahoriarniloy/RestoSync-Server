@@ -26,6 +26,8 @@ async function run() {
     const database = client.db("resturantDB");
     const foodsCollection = database.collection("foods");
     const purchaseCollection = database.collection("purchases");
+    const feedbackCollection = database.collection("feedbacks");
+
 
 
     // Get all foods
@@ -70,7 +72,7 @@ async function run() {
     app.get('/fooddetails/:id', async (req, res) => {
       try {
         const id = req.params.id;
-        const food = await foodsCollection.findOne({ _id: new ObjectId(id) }); // Instantiate ObjectId with 'new'
+        const food = await foodsCollection.findOne({ _id: new ObjectId(id) }); 
         if (!food) {
           return res.status(404).json({ error: "Food not found" });
         }
@@ -93,6 +95,28 @@ async function run() {
       res.json(result);
     } catch (error) {
       console.error("Error purchasing food:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get('/feedback', async (req, res) => {
+    try {
+      const cursor = feedbackCollection.find();
+      const result = await cursor.toArray();
+      res.json(result);
+    } catch (error) {
+      console.error("Error retrieving foods:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post('/feedback', async (req, res) => {
+    try {
+      const newFeedback = req.body;
+      const result = await feedbackCollection.insertOne(newFeedback);
+      res.json(result);
+    } catch (error) {
+      console.error("Error adding food:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
