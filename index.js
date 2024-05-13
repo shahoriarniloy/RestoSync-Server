@@ -1,13 +1,24 @@
 const express = require('express');
+const cookieParser = require('cookie-parser');
+
 const cors = require('cors');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-
+const jwt = require('jsonwebtoken');
 const app = express();
+app.use(cookieParser());
+
 const port = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+
+app.use(cors({
+  origin: ['http://localhost:5173'],
+  credentials: true
+}));
+
+
+
 app.use(express.json());
 
 // MongoDB Connection
@@ -20,6 +31,25 @@ const client = new MongoClient(uri, {
   }
 });
 
+const logger = (req, res, next)=>{
+  console.log('log:info',req.method, req.url);
+  next();
+}
+
+const verifyToken = (req, res, next)=>
+  {
+    const token=req.cookies?.token;
+    console.log('token in the middleware',token);
+    if(!token){
+      return res.status(401).send({message:'Unauthorized Access'})
+    }
+    jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+      if(err){return res.send({messege:'unauthorized access'})
+      }
+    req.user=decoded;
+    next();
+    })
+  }
 async function run() {
   try {
     await client.connect();
@@ -28,6 +58,42 @@ async function run() {
     const purchaseCollection = database.collection("purchases");
     const feedbackCollection = database.collection("feedbacks");
     const usersCollection = database.collection("users");
+
+
+    app.post('/jwt', async (req, res) => {
+        const user = req.body;
+        const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+          expiresIn: '1h'
+        });
+
+        res.cookie('token',token,{
+          httpOnly: true,
+          secure: true,
+          sameSite: 'none'
+        }).send({ success: true });
+      });
+
+      app.get('/userpurchase/:email',logger,verifyToken, async (req, res) => {
+        const email = req.params.email;
+        console.log('token owner',req.user);
+        if(req.user.email!==email){
+          return res.status(403).send({message:'forbidden access'})
+        }
+        const query = { 'buyerEmail': email }; 
+        const foods = await purchaseCollection.find(query).toArray();
+        res.send(foods);
+      });
+      
+      
+      
+      app.post('/logout',async(req,res)=>{
+        const user = req.body;
+        console.log('logging out', user);
+        res.clearCookie('token',{maxAge:0}).send({success:true})
+      })
+
+
+    
 
 
 
@@ -44,16 +110,23 @@ async function run() {
     });
 
     // Add a new food
-    app.post('/foods', async (req, res) => {
+    app.post('/foods', logger,verifyToken, async (req, res) => {
       try {
           const newFood = req.body;
           newFood.quantity = parseInt(newFood.quantity);
           const result = await foodsCollection.insertOne(newFood);
-          res.json(result);
-      } catch (error) {
+          res.json({ insertedId: result.insertedId });
+        } catch (error) {
           console.error("Error adding food:", error);
           res.status(500).json({ error: "Internal server error" });
       }
+  });
+  
+  app.get('/userfoods/:email', logger,verifyToken,async (req, res) => {
+    const email = req.params.email;
+    const query = { 'addedBy.email': email }; 
+    const foods = await foodsCollection.find(query).toArray();
+    res.send(foods);
   });
   
 
@@ -155,19 +228,9 @@ async function run() {
 
 
 
-app.get('/userfoods/:email', async (req, res) => {
-  const email = req.params.email;
-  const query = { 'addedBy.email': email }; 
-  const foods = await foodsCollection.find(query).toArray();
-  res.send(foods);
-});
 
-app.get('/userpurchase/:email', async (req, res) => {
-  const email = req.params.email;
-  const query = { 'buyerEmail': email }; 
-  const foods = await purchaseCollection.find(query).toArray();
-  res.send(foods);
-});
+
+
 
 
 
@@ -214,6 +277,7 @@ app.delete('/userpurchase/:id', async (req,res) =>{
   const result = await purchaseCollection.deleteOne(query);
   res.send(result);
 })
+
 
 
 
