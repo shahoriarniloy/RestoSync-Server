@@ -12,10 +12,12 @@ const port = process.env.PORT || 5000;
 
 // Middleware
 
-app.use(cors({
-  origin: ['http://localhost:5173'],
+const corsOptions = {
+  origin: ['http://localhost:5173', 'https://googleads.g.doubleclick.net','https://www.youtube.com'],
   credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
 
 
 
@@ -44,7 +46,9 @@ const verifyToken = (req, res, next)=>
       return res.status(401).send({message:'Unauthorized Access'})
     }
     jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
-      if(err){return res.send({messege:'unauthorized access'})
+      if(err){      
+        return res.status(401).send({message:'Unauthorized Access'})
+
       }
     req.user=decoded;
     next();
@@ -74,8 +78,8 @@ async function run() {
       });
 
       app.get('/userpurchase/:email',logger,verifyToken, async (req, res) => {
-        const email = req.params.email;
         console.log('token owner',req.user);
+        const email = req.params.email;
         if(req.user.email!==email){
           return res.status(403).send({message:'forbidden access'})
         }
@@ -99,6 +103,10 @@ async function run() {
 
     // Get all foods
     app.get('/foods', async (req, res) => {
+      const email = req.query.email;
+      if(req.user.email!==email){
+        return res.status(403).send({message:'forbidden access'})
+      }
       try {
         const cursor = foodsCollection.find();
         const result = await cursor.toArray();
@@ -112,7 +120,12 @@ async function run() {
     // Add a new food
     app.post('/foods', logger,verifyToken, async (req, res) => {
       try {
+        const email = req.query.email;
+      if(req.user.email!==email){
+        return res.status(403).send({message:'forbidden access'})
+      }
           const newFood = req.body;
+          
           newFood.quantity = parseInt(newFood.quantity);
           const result = await foodsCollection.insertOne(newFood);
           res.json({ insertedId: result.insertedId });
@@ -124,6 +137,9 @@ async function run() {
   
   app.get('/userfoods/:email', logger,verifyToken,async (req, res) => {
     const email = req.params.email;
+      if(req.user.email!==email){
+        return res.status(403).send({message:'forbidden access'})
+      }
     const query = { 'addedBy.email': email }; 
     const foods = await foodsCollection.find(query).toArray();
     res.send(foods);
@@ -180,8 +196,12 @@ async function run() {
 });
 
 
-  app.get('/feedback', async (req, res) => {
+  app.get('/feedback', logger,verifyToken, async (req, res) => {
     try {
+      const email = req.query.email;
+      if(req.user.email!==email){
+        return res.status(403).send({message:'forbidden access'})
+      }
       const cursor = feedbackCollection.find();
       const result = await cursor.toArray();
       res.json(result);
@@ -191,7 +211,11 @@ async function run() {
     }
   });
 
-  app.post('/feedback', async (req, res) => {
+  app.post('/feedback', logger,verifyToken, async (req, res) => {
+    const email = req.query.email;
+      if(req.user.email!==email){
+        return res.status(403).send({message:'forbidden access'})
+      }
     try {
       const newFeedback = req.body;
       const result = await feedbackCollection.insertOne(newFeedback);
