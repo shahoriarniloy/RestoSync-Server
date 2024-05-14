@@ -10,15 +10,14 @@ app.use(cookieParser());
 
 const port = process.env.PORT || 5000;
 
-// Middleware
 
 const corsOptions = {
   origin: [
-    'http://localhost:5174',
     'http://localhost:5173',
-
-    'http://restosync-3d474.web.app',
-    'http://restosync-3d474.firebaseapp.com'],
+    'https://restosync-3d474.web.app',
+    'https://restosync-3d474.firebaseapp.com',
+  'https://restosync.netlify.app'
+],
   credentials: true
 };
 
@@ -59,6 +58,18 @@ const verifyToken = (req, res, next)=>
     next();
     })
   }
+
+  const cookieOption = {
+    httpOnly: true,
+    secure:  process.env.NODE_ENV === "production"? true: false,
+    sameSite: process.env.NODE_ENV === "production"? "none": "strict",
+  };
+
+  // const cookieOptions = {
+  //   httpOnly: true,
+  //   secure: process.env.NODE_ENV === "production",
+  //   sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+  // };
 async function run() {
   try {
     // await client.connect();
@@ -75,11 +86,7 @@ async function run() {
           expiresIn: '1h'
         });
 
-        res.cookie('token',token,{
-          httpOnly: true,
-          secure: true,
-          sameSite: 'none'
-        }).send({ success: true });
+        res.cookie('token',token, cookieOption).send({ success: true });
       });
 
       app.get('/userpurchase/:email',logger,verifyToken, async (req, res) => {
@@ -98,7 +105,7 @@ async function run() {
       app.post('/logout',async(req,res)=>{
         const user = req.body;
         console.log('logging out', user);
-        res.clearCookie('token',{maxAge:0}).send({success:true})
+        res.clearCookie('token',{...cookieOption , maxAge:0}).send({success:true})
       })
 
 
@@ -169,6 +176,8 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+    
+    
 
     // Get single food by ID
     app.get('/fooddetails/:id', async (req, res) => {
@@ -206,12 +215,10 @@ async function run() {
 });
 
 
-  app.get('/feedback', logger,verifyToken, async (req, res) => {
+  app.get('/feedback',  async (req, res) => {
     try {
       const email = req.query.email;
-      if(req.user.email!==email){
-        return res.status(403).send({message:'forbidden access'})
-      }
+     
       const cursor = feedbackCollection.find();
       const result = await cursor.toArray();
       res.json(result);
@@ -222,7 +229,8 @@ async function run() {
   });
 
   app.post('/feedback', logger,verifyToken, async (req, res) => {
-    const email = req.query.email;
+    
+    const email = req.body.email;
       if(req.user.email!==email){
         return res.status(403).send({message:'forbidden access'})
       }
@@ -270,10 +278,17 @@ async function run() {
 
 const ObjectId = require('mongodb').ObjectId;
 
-app.put('/userfood/update/:id', async (req, res) => {
+app.put('/userfood/update/:id', logger,verifyToken,async (req, res) => {
+
+  const email = req.body.addBy.email;
+      if(req.user.email!==email){
+        return res.status(403).send({message:`forbidden access ${email}`})
+      }
+
     try {
         const id = req.params.id;
         const art = req.body;
+        
 
         const filter = { _id: new ObjectId(id) };
         const update = {
