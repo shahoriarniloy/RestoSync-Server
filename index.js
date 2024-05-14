@@ -13,7 +13,12 @@ const port = process.env.PORT || 5000;
 // Middleware
 
 const corsOptions = {
-  origin: ['http://localhost:5173', 'https://googleads.g.doubleclick.net','https://www.youtube.com'],
+  origin: [
+    'http://localhost:5174',
+    'http://localhost:5173',
+
+    'http://restosync-3d474.web.app',
+    'http://restosync-3d474.firebaseapp.com'],
   credentials: true
 };
 
@@ -56,7 +61,7 @@ const verifyToken = (req, res, next)=>
   }
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
     const database = client.db("resturantDB");
     const foodsCollection = database.collection("foods");
     const purchaseCollection = database.collection("purchases");
@@ -103,10 +108,10 @@ async function run() {
 
     // Get all foods
     app.get('/foods', async (req, res) => {
-      const email = req.query.email;
-      if(req.user.email!==email){
-        return res.status(403).send({message:'forbidden access'})
-      }
+      // const email = req.query.email;
+      // if(req.user.email!==email){
+      //   return res.status(403).send({message:'forbidden access'})
+      // }
       try {
         const cursor = foodsCollection.find();
         const result = await cursor.toArray();
@@ -118,22 +123,27 @@ async function run() {
     });
 
     // Add a new food
-    app.post('/foods', logger,verifyToken, async (req, res) => {
+    app.post('/foods', logger, verifyToken, async (req, res) => {
       try {
-        const email = req.query.email;
-      if(req.user.email!==email){
-        return res.status(403).send({message:'forbidden access'})
-      }
+          console.log('user:', req.user.email); 
+          const email = req.user.email; 
           const newFood = req.body;
-          
+  
+          if (req.user.email !== newFood.addedBy.email) {
+              return res.status(403).send({ message: 'forbidden access' });
+          }
+  
           newFood.quantity = parseInt(newFood.quantity);
+  
           const result = await foodsCollection.insertOne(newFood);
+  
           res.json({ insertedId: result.insertedId });
-        } catch (error) {
+      } catch (error) {
           console.error("Error adding food:", error);
           res.status(500).json({ error: "Internal server error" });
       }
   });
+  
   
   app.get('/userfoods/:email', logger,verifyToken,async (req, res) => {
     const email = req.params.email;
