@@ -13,7 +13,7 @@ const port = process.env.PORT || 5000;
 
 const corsOptions = {
   origin: [
-    'http://localhost:5173',
+    // 'http://localhost:5173',
     'https://restosync-3d474.web.app',
     'https://restosync-3d474.firebaseapp.com',
   'https://restosync.netlify.app'
@@ -197,7 +197,7 @@ async function run() {
    // purchasing a food item
    
 
-  app.post('/purchase', async (req, res) => {
+  app.post('/purchase', logger,verifyToken, async (req, res) => {
     try {
         const newPurchase = req.body;
         
@@ -296,7 +296,7 @@ app.put('/userfood/update/:id', logger,verifyToken,async (req, res) => {
                 image: art.foodImage,
                 item_name: art.foodName,
                 foodCategory: art.foodCategory,
-                quantity: art.quantity,
+                quantity: parseInt(art.quantity),
                 price: art.price,
                 foodOrigin: art.foodOrigin,
                 short_description: art.shortDescription,
@@ -320,7 +320,7 @@ app.put('/userfood/update/:id', logger,verifyToken,async (req, res) => {
     }
 });
 
-app.delete('/userpurchase/:id', async (req,res) =>{
+app.delete('/userpurchase/:id', logger,verifyToken, async (req,res) =>{
   const id = req.params.id;
   const query = {_id: new ObjectId(id) }
   const result = await purchaseCollection.deleteOne(query);
