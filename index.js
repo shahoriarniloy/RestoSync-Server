@@ -100,6 +100,21 @@ async function run() {
         res.send(foods);
       });
       
+     
+
+      app.get('/foods/category/:categoryName', async (req, res) => {
+        try {
+            const categoryName = req.params.categoryName;
+            const cursor = foodsCollection.find({ foodCategory: categoryName });
+            const result = await cursor.toArray();
+            res.json(result);
+        } catch (error) {
+            console.error("Error retrieving foods by category:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    });
+    
+
       
       
       app.post('/logout',async(req,res)=>{
@@ -326,6 +341,30 @@ app.delete('/userpurchase/:id', logger,verifyToken, async (req,res) =>{
   const result = await purchaseCollection.deleteOne(query);
   res.send(result);
 })
+
+ // Get all categories
+ app.get('/categories', async (req, res) => {
+  try {
+    const categories = await foodsCollection.distinct('foodCategory');
+    res.json(categories);
+  } catch (error) {
+    console.error("Error retrieving categories:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get foods by category
+app.get('/categoryfoods/:category', async (req, res) => {
+  try {
+    const category = req.params.category;
+    const foods = await foodsCollection.find({ foodCategory: category }).toArray();
+    res.json(foods);
+  } catch (error) {
+    console.error("Error retrieving foods by category:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 
 
 
