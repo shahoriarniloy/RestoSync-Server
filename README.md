@@ -1,4 +1,4 @@
-###This is the Back end for RestoSync project, which is a restaurant management system.
+## This is the Back end for RestoSync project, which is a restaurant management system.
 
 ## Live Site URL
 [https://restosync-3d474.web.app]
